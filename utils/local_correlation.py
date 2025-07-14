@@ -57,7 +57,7 @@ def local_correlation(
                     feature1[_:_+1], local_window_coords, padding_mode=padding_mode, align_corners=False, mode = sample_mode, #
                 )
                 window_feature = window_feature.reshape(c,num_grid,num_grid,(2*r+1)**2)
-            corr[_] = (feature0[_,...,None]/(c**.5)*window_feature).sum(dim=0).permute(2,0,1) ## 类似于内积，cosine similarity
+            corr[_] = (feature0[_,...,None]/(c**.5)*window_feature).sum(dim=0).permute(2,0,1).contiguous() ## cosine similarity
     else:
         for level in range(num_level):
             for _ in range(B):
@@ -67,6 +67,6 @@ def local_correlation(
                         feature1[_:_+1], local_window_coords, padding_mode=padding_mode, align_corners=False, mode = sample_mode, #
                     )
                     window_feature = window_feature.reshape(c,num_grid,num_grid,(2*r+1)**2)
-                corr[_, (2*r+1)**2*level: (2*r+1)**2*(level+1)] = (feature0[_,...,None]/(c**.5)*window_feature).sum(dim=0).permute(2,0,1) ## 类似于内积，cosine similarity                    
+                corr[_, (2*r+1)**2*level: (2*r+1)**2*(level+1)] = (feature0[_,...,None]/(c**.5)*window_feature).sum(dim=0).permute(2,0,1).contiguous() ## cosine similarity                    
             feature1 = F.avg_pool2d(feature1, kernel_size=2, stride=2)
     return corr

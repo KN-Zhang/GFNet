@@ -166,7 +166,7 @@ class GFNet(nn.Module):
             if self.dino[0].device != vit_imgs.device:
                 self.dino[0] = self.dino[0].to(vit_imgs.device).to(self.amp_dtype)
             dinov2_features_14 = self.dino[0].forward_features(vit_imgs.to(self.amp_dtype))
-            features_14 = dinov2_features_14['x_norm_patchtokens']  #.permute(0,2,1).reshape(B,1024,H//14, W//14)
+            features_14 = dinov2_features_14['x_norm_patchtokens']
             del dinov2_features_14
         with torch.autocast(device_type="cuda", enabled=self.amp, dtype=self.amp_dtype):
             vit0, vit1 = self.dino_decoder(features_14.chunk(2)[0], features_14.chunk(2)[1], vit_shape=(twoB//2, C, vit_h//14, vit_w//14))        
@@ -281,6 +281,7 @@ class GFNet(nn.Module):
                 ).detach()
 
         return corresps
+    
     @torch.inference_mode()
     def match(self, im0, im1, *args, batched = True):
         if isinstance(im0, (str, Path)):
@@ -326,7 +327,6 @@ class GFNet(nn.Module):
             hs, ws = self.upsample_res
             ## from coarse to fine
             self.num_grid_up = [int(hs/14), 2*int(hs/14), 4*int(hs/14), 8*int(hs/14)]
-            # self.num_grid_up = self.num_grid[1:]
             self.radius_up = self.radius[-len(self.num_grid_up):]
             self.num_itr_up = self.num_itr[-len(self.num_grid_up):]
         if self.attenuate_cert:
@@ -342,7 +342,6 @@ class GFNet(nn.Module):
             test_transform = get_tuple_transform_ops(
                 resize=(hs, ws), mode=2, normalize=True
             )
-            # im_A, im_B = test_transform((Image.open(im_A_path).convert('RGB'), Image.open(im_B_path).convert('RGB')))
             im0, im1 = test_transform((imA.squeeze(0), imB.squeeze(0)))
             im0, im1 = im0[None].to(device), im1[None].to(device)
             scale_factor = math.sqrt(self.upsample_res[0] * self.upsample_res[1] / (self.w_resized * self.h_resized))
@@ -423,9 +422,9 @@ class GFNet(nn.Module):
         """
         B, C, H0, W0 = feat0.shape
         B, C, H1, W1 = feat1.shape
-        feat0 = feat0.view(B, C, H0*W0)
-        feat1 = feat1.view(B, C, H1*W1)
-        corr_volume = torch.einsum('bci,bcj->bji', feat0, feat1).reshape(B, H1, W1, H0 , W0)/math.sqrt(C) #16*16*16
+        feat0 = feat0.view(B, C, H0*W0).contiguous()
+        feat1 = feat1.view(B, C, H1*W1).contiguous()
+        corr_volume = torch.einsum('bci,bcj->bji', feat0, feat1).reshape(B, H1, W1, H0 , W0).contiguous()/math.sqrt(C) #16*16*16
         return corr_volume
 
     def pos_embed(self, corr_volume: torch.Tensor):
@@ -435,9 +434,9 @@ class GFNet(nn.Module):
                     torch.linspace(-1+1/W1,1-1/W1, W1), 
                     torch.linspace(-1+1/H1,1-1/H1, H1), 
                     indexing = "xy"), 
-                dim = -1).float().to(corr_volume).reshape(H1*W1, 2)
-        P = corr_volume.reshape(B,H1*W1,H0,W0).softmax(dim=1) # B, HW, H, W
-        pos_embeddings = torch.einsum('bchw,cd->bdhw', P, grid)
+                dim = -1).float().to(corr_volume).reshape(H1*W1, 2).contiguous()
+        P = corr_volume.reshape(B,H1*W1,H0,W0).contiguous().softmax(dim=1) # B, HW, H, W
+        pos_embeddings = torch.einsum('bchw,cd->bdhw', P, grid).contiguous()
         return pos_embeddings
     
 
@@ -535,7 +534,7 @@ class ConvRefiner(nn.Module):
         b,c,hs,ws = x.shape
         autocast_device, autocast_enabled, autocast_dtype = get_autocast_params(x.device, enabled=self.amp, dtype=self.amp_dtype)
         with torch.autocast(autocast_device, enabled=autocast_enabled, dtype = autocast_dtype):            
-            x_hat = F.grid_sample(y, flow.permute(0, 2, 3, 1), align_corners=False, mode = self.sample_mode)
+            x_hat = F.grid_sample(y, flow.permute(0, 2, 3, 1).contiguous(), align_corners=False, mode = self.sample_mode)
             if self.has_displacement_emb:
                 im_A_coords = torch.meshgrid(
                 (

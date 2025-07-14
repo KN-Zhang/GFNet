@@ -1,4 +1,3 @@
-import json
 import math
 import torch
 import torch.nn as nn
@@ -57,8 +56,8 @@ class CrossVITDecoder_noself(nn.Module):
             x, y = x_new, y_new
 
 
-        x_new = x_new.reshape(B, H, W, -1).permute(0, 3, 1, 2)
-        y_new = y_new.reshape(B, H, W, -1).permute(0, 3, 1, 2)
+        x_new = x_new.reshape(B, H, W, -1).contiguous().permute(0, 3, 1, 2)
+        y_new = y_new.reshape(B, H, W, -1).contiguous().permute(0, 3, 1, 2)
 
         return x_new, y_new
 
