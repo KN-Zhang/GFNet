@@ -15,8 +15,7 @@ pip install -r requirements.txt
 ```
 
 # Dataset & Pre-trained weights
-**Download link**: [https://pan.baidu.com/s/1CwyHIYBwr3PdFatqbPn-4g](https://pan.baidu.com/s/1CwyHIYBwr3PdFatqbPn-4g)  
-**Extraction code**: `qwer`
+You can download the datasets from [Baidu Cloud](https://pan.baidu.com/s/1CwyHIYBwr3PdFatqbPn-4g) (code: qwer) or from [HuggingFace](https://huggingface.co/datasets/carney1212/cvpr25_datasets/resolve/main/cvpr25_dataset.7z).
 
 Please create a folder named ```ckpts``` and place the pre-trained weights inside with the following file structure:
 ```
