@@ -31,7 +31,7 @@ project_root/
 ```
 
 For the dataset, please create a folder named ```data``` and place the downloaded files inside.
-Make sure to update the dataset root path in ```configs/__init__.py``` to match your local directory structure. 
+Make sure to update the dataset root path in ```gfnet_configs/__init__.py``` to match your local directory structure. 
 You can train our model on any dataset by providing aligned image pairs.
 
 The data file structure should look like:
@@ -67,7 +67,7 @@ You can configure the script with the following arguments:
   `['mscoco', 'vis_ir_drone', 'googlemap_448x448', 'googlemap_224x224', 'googlemap_672x672', 'your_own_dataset']`
 
 - `--conf_path`: configuration file path, e.g.,  
-  `['configs/basic.json', 'configs/vis_ir.json', 'configs/map.json']`
+  `['gfnet_configs/basic.json', 'gfnet_configs/vis_ir.json', 'gfnet_configs/map.json']`
 
 - `--ckpt_path`: path to the pre-trained weights, e.g.,  
   `['ckpts/basic/latest.pth', 'ckpts/vis_ir_drone/latest.pth', 'ckpts/googlemap/latest.pth']`

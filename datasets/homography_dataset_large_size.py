@@ -10,7 +10,7 @@ from torchvision import transforms
 from PIL import Image, ImageFilter
 import kornia.geometry.transform as KGT
 
-import configs
+import gfnet_configs
 from datasets.generate_random_H_large_size import randomH
 
 
@@ -36,6 +36,7 @@ class HomographyDataset(Dataset):
                  bi=False,
                  normalize=True,
                  deformation_ratio=[0.3],
+                 input_format='rgb',
                  **kwargs):
         super().__init__()
 
@@ -50,12 +51,13 @@ class HomographyDataset(Dataset):
         self.normalize = normalize
         self.input_norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self.deformation_ratio = deformation_ratio
+        self.input_format = input_format
         imgs0 = []
         imgs1 = []
         
         if mode == 'train':
             if dataset == 'vis_ir_drone':
-                path = f'{configs.cfg.DATA_PATH}/train/VIS-IR-drone'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/train/VIS-IR-drone'
                 test_list = open(f'{path}/test_list_original.txt').read().split('\n')
                 all_list = os.listdir(f'{path}/train/trainimg/')
                 train_list = [x for x in all_list if x not in test_list][:5000]
@@ -67,7 +69,7 @@ class HomographyDataset(Dataset):
                         imgs0.append(f'{path}/train/trainimgr/' + image_name) ## r
                         imgs1.append(f'{path}/train/trainimg/' + image_name)
             elif dataset == 'googlemap':
-                path = f'{configs.cfg.DATA_PATH}/train/GoogleMap'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/train/GoogleMap'
                 train_list = os.listdir(f'{path}/map/')[:5000]
                 for image_name in train_list:
                     if torch.rand(1)>0.5:
@@ -77,7 +79,7 @@ class HomographyDataset(Dataset):
                         imgs0.append(f'{path}/map/' + image_name)
                         imgs1.append(f'{path}/satellite/' + image_name)
             elif dataset == 'glunet_448x448_occlusion':
-                path = f'{configs.cfg.DATA_PATH}/train/glunet_448x448_occlusion/target'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/train/glunet_448x448_occlusion/target'
                 train_list = glob.glob(os.path.join(path, '*'))
                 self.H_stg = []
                 self.mask = []
@@ -93,23 +95,23 @@ class HomographyDataset(Dataset):
                 transforms.ToTensor()
                 ])                      
             if dataset == 'vis_ir_drone':
-                path = f'{configs.cfg.DATA_PATH}/test/visir_1k_448x448/target'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/test/visir_1k_448x448/target'
                 test_list = os.listdir(path)
                 self.H_stg = [os.path.join(path.replace('target', 'H_s2t'), i.replace('png', 'json')) for i in test_list]
             elif dataset == 'googlemap':
-                path = f'{configs.cfg.DATA_PATH}/test/googlemap_1k_448x448_new/target'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/test/googlemap_1k_448x448_new/target'
                 test_list = os.listdir(path)
                 self.H_stg = [os.path.join(path.replace('target', 'H_s2t'), i.replace('jpg', 'json')) for i in test_list]
             elif dataset == 'googlemap_224x224':
-                path = f'{configs.cfg.DATA_PATH}/test/googlemap_1k_224x224/target'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/test/googlemap_1k_224x224/target'
                 test_list = os.listdir(path)
                 self.H_stg = [os.path.join(path.replace('target', 'H_s2t'), i.replace('jpg', 'json')) for i in test_list]
             elif dataset == 'googlemap_672x672':
-                path = f'{configs.cfg.DATA_PATH}/test/googlemap_1k_672x672/target'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/test/googlemap_1k_672x672/target'
                 test_list = os.listdir(path)
                 self.H_stg = [os.path.join(path.replace('target', 'H_s2t'), i.replace('jpg', 'json')) for i in test_list]            
             elif dataset == 'mscoco':
-                path = f'{configs.cfg.DATA_PATH}/test/mscoco_1k_448x448/target'
+                path = f'{gfnet_configs.cfg.DATA_PATH}/test/mscoco_1k_448x448/target'
                 test_list = os.listdir(path)
                 self.H_stg = [os.path.join(path.replace('target', 'H_s2t'), i.replace('png', 'json')) for i in test_list]
                 test_list = os.listdir(path)
@@ -124,12 +126,25 @@ class HomographyDataset(Dataset):
 
     def __getitem__(self, index, visualization=False):
 
-        img0 = Image.open(self.imgs0[index]) ## target
-        if img0.mode != 'RGB':
-            img0 = img0.convert('RGB')
-        img1 = Image.open(self.imgs1[index])
-        if img1.mode != 'RGB':
-            img1 = img1.convert('RGB')
+        # --- load image0 ---
+        img0_rgb = Image.open(self.imgs0[index])
+        if img0_rgb.mode != "RGB":
+            img0_rgb = img0_rgb.convert("RGB")
+        img0_gray = img0_rgb.convert("L")   # 灰度（1 channel）
+
+        # --- load image1 ---
+        img1_rgb = Image.open(self.imgs1[index])
+        if img1_rgb.mode != "RGB":
+            img1_rgb = img1_rgb.convert("RGB")
+        img1_gray = img1_rgb.convert("L")
+        
+        if self.input_format == 'rgb':
+            img0 = img0_rgb
+            img1 = img1_rgb
+        elif self.input_format == 'gray':
+            img0 = img0_gray
+            img1 = img1_gray
+            
         if self.mode == 'train':
             if self.dataset == 'vis_ir_drone':
                 img0 = np.array(img0) ## H W C
@@ -194,29 +209,22 @@ class HomographyDataset(Dataset):
             mask = None
 
         
+        sample = {
+            "im_A": img1,
+            "im_B": img0,
+            "im_A_path": self.imgs1[index],
+            "im_B_path": self.imgs0[index],
+            "H_s2t": H_s2t,
+            "warped_img1": warped_img1,
+            "dataset_name": self.dataset,
+            "original_h": self.input_resolution,
+            # "image0_rgb": img1_rgb,
+            # "image1_rgb": img0_rgb,
+        }
+
         if mask is not None:
-            return {
-                "im_A": img1,
-                "im_A_path": self.imgs1[index],
-                "im_B": img0,
-                "im_B_path": self.imgs0[index],
-                'H_s2t': H_s2t,
-                'warped_img1': warped_img1,
-                'dataset_name': self.dataset,
-                "im_A_path": self.imgs1[index],
-                "im_B_path": self.imgs0[index],
-                'mask': mask,
-            }
-        else:
-            return {
-                "im_A": img1,
-                "im_A_path": self.imgs1[index],
-                "im_B": img0,
-                "im_B_path": self.imgs0[index],
-                'H_s2t': H_s2t,
-                'warped_img1': warped_img1,
-                'dataset_name': self.dataset,
-                "im_A_path": self.imgs1[index],
-                "im_B_path": self.imgs0[index],
-            }            
+            sample["mask"] = mask
+
+        return sample
+          
   

@@ -9,7 +9,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision import transforms
 
-import configs
+import gfnet_configs
 from model.network import GFNet
 from datasets.homography_dataset_large_size import HomographyDataset, RandomGaussianBlur
 from losses.robust_loss import RobustLosses
@@ -24,7 +24,7 @@ def train(args):
     rank = dist.get_rank()
     print(f"Start running DDP on rank {rank}")
     device_id = rank % torch.cuda.device_count()
-    configs.cfg.LOCAL_RANK = device_id
+    gfnet_configs.cfg.LOCAL_RANK = device_id
     torch.cuda.set_device(device_id)
 
     wandb_log = not args.dont_log_wandb
@@ -60,12 +60,12 @@ def train(args):
     global_step = 0
     batch_size = args.gpu_batch_size
     step_size = gpus*batch_size
-    configs.cfg.STEP_SIZE = step_size
+    gfnet_configs.cfg.STEP_SIZE = step_size
     
     N = 2_000_000  # 2M pairs
     # checkpoint every
-    k = 25000 // configs.cfg.STEP_SIZE
-    total_epochs = N // ( k * configs.cfg.STEP_SIZE)
+    k = 25000 // gfnet_configs.cfg.STEP_SIZE
+    total_epochs = N // ( k * gfnet_configs.cfg.STEP_SIZE)
 
     if 'glunet' not in args.dataset:
         train_dataset = HomographyDataset(dataset=args.dataset,
@@ -105,7 +105,7 @@ def train(args):
         iteration_base=1,
         )    
     parameters = [
-        {"params": model.parameters(), "lr": configs.cfg.STEP_SIZE * 1e-4 / 8},
+        {"params": model.parameters(), "lr": gfnet_configs.cfg.STEP_SIZE * 1e-4 / 8},
     ]
     optimizer = torch.optim.AdamW(parameters, weight_decay=0.01)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_epochs)
@@ -114,12 +114,12 @@ def train(args):
     
     checkpointer = CheckPoint(checkpoint_dir, experiment_name)
     model, optimizer, lr_scheduler, global_step = checkpointer.load(model, optimizer, lr_scheduler, global_step)
-    configs.cfg.GLOBAL_STEP = global_step
+    gfnet_configs.cfg.GLOBAL_STEP = global_step
     grad_scaler = torch.cuda.amp.GradScaler(growth_interval=1_000_000)
     grad_clip_norm = 0.01
 
     try:
-        for n in range(configs.cfg.GLOBAL_STEP, N, k * configs.cfg.STEP_SIZE):
+        for n in range(gfnet_configs.cfg.GLOBAL_STEP, N, k * gfnet_configs.cfg.STEP_SIZE):
             mega_sampler = torch.utils.data.RandomSampler(
                 train_dataset, num_samples = batch_size * k, replacement=False
             )
@@ -135,14 +135,14 @@ def train(args):
                 n, k, mega_dataloader, ddp_model, depth_loss, optimizer, lr_scheduler, grad_scaler, grad_clip_norm = grad_clip_norm,
             )
             
-            checkpointer.save(model, optimizer, lr_scheduler, configs.cfg.GLOBAL_STEP)
+            checkpointer.save(model, optimizer, lr_scheduler, gfnet_configs.cfg.GLOBAL_STEP)
    
         ## save the final ckpt
-        checkpointer.save(model, optimizer, lr_scheduler, configs.cfg.GLOBAL_STEP)
-        wandb.log(megadense_benchmark.benchmark(model), step = configs.cfg.GLOBAL_STEP)
+        checkpointer.save(model, optimizer, lr_scheduler, gfnet_configs.cfg.GLOBAL_STEP)
+        wandb.log(megadense_benchmark.benchmark(model), step = gfnet_configs.cfg.GLOBAL_STEP)
     except KeyboardInterrupt:
         if not args.dont_log_wandb:
-            checkpointer.save(model, optimizer, lr_scheduler, configs.cfg.GLOBAL_STEP)
+            checkpointer.save(model, optimizer, lr_scheduler, gfnet_configs.cfg.GLOBAL_STEP)
         sys.exit(0)
     
 if __name__ == "__main__":

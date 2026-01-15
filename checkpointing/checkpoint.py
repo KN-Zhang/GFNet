@@ -5,7 +5,7 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from loguru import logger
 import gc
 
-import configs
+import gfnet_configs
 
 class CheckPoint:
     def __init__(self, dir=None, name="tmp"):
@@ -20,7 +20,7 @@ class CheckPoint:
         lr_scheduler,
         n,
         ):
-        if configs.cfg.RANK == 0:
+        if gfnet_configs.cfg.RANK == 0:
             assert model is not None
             if isinstance(model, (DataParallel, DistributedDataParallel)):
                 model = model.module
@@ -40,7 +40,7 @@ class CheckPoint:
         lr_scheduler,
         n,
         ):   
-        if os.path.exists(os.path.join(self.dir, self.name, "latest.pth")) and configs.cfg.RANK == 0:
+        if os.path.exists(os.path.join(self.dir, self.name, "latest.pth")) and gfnet_configs.cfg.RANK == 0:
             states = torch.load(os.path.join(self.dir, self.name, "latest.pth"))
             if "model" in states:
                 model.load_state_dict(states["model"])

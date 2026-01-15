@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import kornia
 import wandb
-import configs
+import gfnet_configs
 
 
 def get_gt_warp_homography(H_s2t, img_src, img_tgt, H, W, im_A_coords=None, normalized=True, return_x1_n=False):
@@ -72,7 +72,7 @@ class RobustLosses(nn.Module):
             if num_itr == len(flow):
                 num_pixles = 448. / scale
                 pck_05 = (epe[prob > 0.99] < 0.5 * (2/num_pixles)).float().mean()
-                wandb.log({f"train_pck_05_scale_{scale}": pck_05}, step = configs.cfg.GLOBAL_STEP)
+                wandb.log({f"train_pck_05_scale_{scale}": pck_05}, step = gfnet_configs.cfg.GLOBAL_STEP)
 
             gt_cert = prob
             ce_loss = ce_loss + self.iteration_base**(len(flow)-num_itr) * F.binary_cross_entropy_with_logits(certainty[num_itr][:, 0], gt_cert)
@@ -86,7 +86,7 @@ class RobustLosses(nn.Module):
             f"{mode}_certainty_loss_{scale}": ce_loss.mean(),
             f"{mode}_regression_loss_{scale}": reg_loss.mean(),
         }
-        wandb.log(losses, step = configs.cfg.GLOBAL_STEP)
+        wandb.log(losses, step = gfnet_configs.cfg.GLOBAL_STEP)
         return losses
     
     def forward(self, corresps, batch):

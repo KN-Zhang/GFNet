@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 
-import configs
+import gfnet_configs
 from model.network import GFNet
 from estimation import demo_estimation, auc
 
@@ -39,19 +39,19 @@ if __name__ == "__main__":
 
     # my datasets
     if args.dataset == 'mscoco':
-        test_path = f'{configs.cfg.DATA_PATH}/test/mscoco_1k_448x448/source'
+        test_path = f'{gfnet_configs.cfg.DATA_PATH}/test/mscoco_1k_448x448/source'
         ext = 'png'
     elif args.dataset == 'vis_ir_drone':
-        test_path = f'{configs.cfg.DATA_PATH}/test/visir_1k_448x448/source'
+        test_path = f'{gfnet_configs.cfg.DATA_PATH}/test/visir_1k_448x448/source'
         ext = 'png'
     elif args.dataset == 'googlemap_448x448':
-        test_path = f'{configs.cfg.DATA_PATH}/test/googlemap_1k_448x448_new/source'
+        test_path = f'{gfnet_configs.cfg.DATA_PATH}/test/googlemap_1k_448x448_new/source'
         ext = 'jpg'
     elif args.dataset == 'googlemap_224x224':
-        test_path = f'{configs.cfg.DATA_PATH}/test/googlemap_1k_224x224_new/source'        
+        test_path = f'{gfnet_configs.cfg.DATA_PATH}/test/googlemap_1k_224x224_new/source'        
         ext = 'jpg'
     elif args.dataset == 'googlemap_672x672':
-        test_path = f'{configs.cfg.DATA_PATH}/test/googlemap_1k_672x672/source'        
+        test_path = f'{gfnet_configs.cfg.DATA_PATH}/test/googlemap_1k_672x672/source'        
         ext = 'jpg'    
         
     error = []
