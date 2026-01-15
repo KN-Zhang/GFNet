@@ -11,4 +11,4 @@ cfg.STEP_SIZE = 1
 cfg.LOCAL_RANK = -1
 
 # data path
-cfg.DATA_PATH = '/data/zkn/data/GFNet/iclr25'###'data'
+cfg.DATA_PATH = 'data' ### your own data path
